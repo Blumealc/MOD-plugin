@@ -1,0 +1,135 @@
+{
+	"patcher" : 	{
+		"fileversion" : 1,
+		"appversion" : 		{
+			"major" : 8,
+			"minor" : 5,
+			"revision" : 3,
+			"architecture" : "x64",
+			"modernui" : 1
+		}
+,
+		"classnamespace" : "dsp.gen",
+		"rect" : [ 709.0, 176.0, 892.0, 793.0 ],
+		"bglocked" : 0,
+		"openinpresentation" : 0,
+		"default_fontsize" : 12.0,
+		"default_fontface" : 0,
+		"default_fontname" : "Arial",
+		"gridonopen" : 1,
+		"gridsize" : [ 15.0, 15.0 ],
+		"gridsnaponopen" : 1,
+		"objectsnaponopen" : 1,
+		"statusbarvisible" : 2,
+		"toolbarvisible" : 1,
+		"lefttoolbarpinned" : 0,
+		"toptoolbarpinned" : 0,
+		"righttoolbarpinned" : 0,
+		"bottomtoolbarpinned" : 0,
+		"toolbars_unpinned_last_save" : 0,
+		"tallnewobj" : 0,
+		"boxanimatetime" : 200,
+		"enablehscroll" : 1,
+		"enablevscroll" : 1,
+		"devicewidth" : 0.0,
+		"description" : "",
+		"digest" : "",
+		"tags" : "",
+		"style" : "",
+		"subpatcher_template" : "",
+		"assistshowspatchername" : 0,
+		"boxes" : [ 			{
+				"box" : 				{
+					"id" : "obj-9",
+					"maxclass" : "newobj",
+					"numinlets" : 1,
+					"numoutlets" : 0,
+					"patching_rect" : [ 848.0, 936.0, 35.0, 22.0 ],
+					"text" : "out 2"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-8",
+					"maxclass" : "newobj",
+					"numinlets" : 1,
+					"numoutlets" : 0,
+					"patching_rect" : [ 85.0, 936.0, 35.0, 22.0 ],
+					"text" : "out 1"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-7",
+					"maxclass" : "newobj",
+					"numinlets" : 0,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 848.0, 31.0, 28.0, 22.0 ],
+					"text" : "in 2"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-6",
+					"maxclass" : "newobj",
+					"numinlets" : 0,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 85.0, 31.0, 28.0, 22.0 ],
+					"text" : "in 1"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"code" : "Param interval(100, min = 0.1, max = 10000);\nParam grainSize(100, min = 0.01, max = 20000);\nParam width(0.5, min = 0, max = 1);\nParam pitch(0);\r\nParam spray(0, min = 0, max = 1);\r\nParam reverse(0, min = 0, max = 1);\r\nParam drywet(0, min = 0, max = 1);\n\nDelay del_inL(samplerate * 20);\nDelay del_inR(samplerate * 20);\n\nData data_param(6, 100);\nData inBuffer(samplerate, 2);\r\n\nHistory his_index(0);\nHistory his_mix(0), his_gain(0);\r\nHistory counter(0), rcount(0);\n\nmaxVoice = 100;\r\n\r\nsig1 = in1;\r\nsig2 = in2;\r\n\r\npoke(inBuffer, sig1, counter, 0);\r\npoke(inBuffer, sig2, counter, 1);\r\n\r\nsmpL, smpR = peek(inBuffer, rcount, 0), peek(inBuffer, rcount, 1);\ndel_inL.write(smpL);\ndel_inR.write(smpR);\n\r\n/* param order:\r\n1. grainsize\r\n2. width\r\n3. pitch\r\n4. pos\r\n5. pos\r\n*/\r\n\nmCout = counter(1, 0, mstosamps(interval));\nif (mCout == 1) {\n\tif (peek(data_param, 0, his_index) == 0) {\n\t\tpoke(data_param, 1, 0, his_index);\n\t\tpoke(data_param, mstosamps(grainSize), 1, his_index);\n\t\tsizeScaled = mstosamps(grainSize);\n\t\twidthRand = noise() * 0.5 * width;\n\t\tpoke(data_param, 0.5 + widthRand, 3, his_index);\n\t\tpoke(data_param, 0.5 - widthRand, 4, his_index);\n\t\tpitchScaled = pow(2, (pitch) / 12) - 1;\n\t\tpoke(data_param, pitchScaled, 5, his_index);\n\t\tposScaled = samplerate * abs(noise()) * spray * 0.5;\n\t\tpoke(data_param, posScaled + max(sizeScaled*pitchScaled, 0), 2, his_index);\r\n\t\this_index = wrap(his_index + 1, 0, maxVoice);\n\t}\n}\n\noutL = 0;\noutR = 0;\ntotalWin = 0;\nfor (i = 0; i < maxVoice; i += 1) {\n\tpCout = peek(data_param, 0, i);\n\tif (pCout != 0) {\n\t\ts = peek(data_param, 1, i);\n\t\tif (pCout < s) {\n\t\t\tpCoutScaled = pCout / s;\n\t\t\twin = 0.5 * (sin (1.5 * PI + pCoutScaled * TWOPI) + 1);\r\n\t\t\t\n\t\t\toutputL = del_inL.read(\r\n\t\t\t\t\tpeek( data_param, 2, i)\r\n\t\t\t\t\t- pCout * peek(data_param, 5, i))\r\n\t\t\t\t\t* win;\r\n\t\t\t\t\t\n\t\t\toutputR = del_inL.read(\r\n\t\t\t\t\tpeek( data_param, 2, i)\r\n\t\t\t\t\t- pCout * peek(data_param, 5, i))\r\n\t\t\t\t\t* win;\r\n\t\t\t\t\t\n\t\t\toutL += outputL * peek(data_param, 3, i);\n\t\t\toutR += outputR * peek(data_param, 4, i);\n\t\t\tpoke(data_param, pCout + 1, 0, i);\n\t\t\ttotalWin += win;\n\t\t} else {\n\t\t\tpoke(data_param, 0, 0, i);\n\t\t}\n\t}\n}\n\nnormalise = pow(1 / max(totalWin, 1), 0.3);\r\nleft_sig = outL * normalise;\r\nright_sig = outR * normalise;\r\n\nwetL = left_sig;\nwetR = right_sig;\r\n\r\nout1 = mix(in1, wetL, slide(drywet, 128, 128));\nout2 = mix(in2, wetR, slide(drywet, 128, 128));\r\n\r\ncounter = (counter+1)%samplerate;\r\nif (reverse == 1) rcount = samplerate - counter; \r\nelse rcount = counter;",
+					"fontface" : 0,
+					"fontname" : "<Monospaced>",
+					"fontsize" : 12.0,
+					"id" : "obj-5",
+					"maxclass" : "codebox",
+					"numinlets" : 2,
+					"numoutlets" : 2,
+					"outlettype" : [ "", "" ],
+					"patching_rect" : [ 85.0, 78.0, 782.0, 840.0 ]
+				}
+
+			}
+ ],
+		"lines" : [ 			{
+				"patchline" : 				{
+					"destination" : [ "obj-8", 0 ],
+					"source" : [ "obj-5", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-9", 0 ],
+					"source" : [ "obj-5", 1 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-5", 0 ],
+					"source" : [ "obj-6", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-5", 1 ],
+					"source" : [ "obj-7", 0 ]
+				}
+
+			}
+ ],
+		"autosave" : 0
+	}
+
+}
